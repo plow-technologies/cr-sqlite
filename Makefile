@@ -9,7 +9,7 @@ $(git-deps):
 	git submodule update --init --recursive
 
 
-crsqlite: $(git-deps)
+crsqlite:
 	cd core; \
 	make loadable
 
