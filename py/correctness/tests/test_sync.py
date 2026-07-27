@@ -397,13 +397,20 @@ def test_merge_same_w_tie_breaker():
     db3.execute("SELECT crsql_config_set('merge-equal-values', 1);")
     db3.commit()
 
+    # Sync until all three dbs have fully converged (each has seen every other
+    # site's site_id for this row) before capturing the baseline. Otherwise
+    # db1/db2 never learn about db3's site_id in this first round, and the
+    # "idempotence" check below would actually be comparing a partially
+    # informed state against a state that has legitimately learned new
+    # information -- not a repeated merge of the same, already-converged data.
     sync_left_to_right(db1, db2, 0)
-    changes2 = db2.execute("SELECT \"table\", pk, cid, val, col_version, site_id, db_version FROM crsql_changes").fetchall()
-    
     sync_left_to_right(db2, db1, 0)
-    changes1 = db1.execute("SELECT \"table\", pk, cid, val, col_version, site_id, db_version FROM crsql_changes").fetchall()
-
     sync_left_to_right(db2, db3, 0)
+    sync_left_to_right(db3, db2, 0)
+    sync_left_to_right(db2, db1, 0)
+
+    changes2 = db2.execute("SELECT \"table\", pk, cid, val, col_version, site_id, db_version FROM crsql_changes").fetchall()
+    changes1 = db1.execute("SELECT \"table\", pk, cid, val, col_version, site_id, db_version FROM crsql_changes").fetchall()
     changes3 = db3.execute("SELECT \"table\", pk, cid, val, col_version, site_id, db_version FROM crsql_changes").fetchall()
 
     # check that everything by db_version is the same
